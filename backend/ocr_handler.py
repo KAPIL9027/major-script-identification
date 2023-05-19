@@ -119,6 +119,7 @@ class BOXES_HELPER():
     def show_boxes_lines(self, d, frame):
         text_vertical_margin = 12
         organized_tesseract_dictionary = self.get_organized_tesseract_dictionary(d)
+        print(organized_tesseract_dictionary)
         lines_with_words = self.get_lines_with_words(organized_tesseract_dictionary)
         # print(lines_with_words)
         for line in lines_with_words:
@@ -165,7 +166,7 @@ class OCR_HANDLER:
         self.out_name = self.video_name + '_boxes' + self.out_extension
 
     ########## EXTRACT FRAMES AND FIND WORDS #############
-    def process_frames(self,text_string):
+    def process_frames(self):
 
         frame_name = './' + self.frames_folder + '/' + self.video_name + '_frame_'
 
@@ -195,7 +196,7 @@ class OCR_HANDLER:
             if frame_duration >= closest_duration:
                 # if closest duration is less than or equals the frame duration, then save the frame
                 output_name = frame_name + str(idx) + '.png'
-                frame = self.ocr_frame(frame,text_string)
+                frame = self.ocr_frame(frame)
                 cv2.imwrite(output_name, frame)
 
                 if (idx % 10 == 0) and (idx > 0):
@@ -213,6 +214,7 @@ class OCR_HANDLER:
             print(">")
         print("\nSaved and processed", idx, "frames")
         video.release()
+
 
     def assemble_video(self):
 
@@ -255,19 +257,34 @@ class OCR_HANDLER:
         for i in np.arange(0, clip_duration, 1 / saving_fps):
             s.append(i)
         return s, video.get(cv2.CAP_PROP_FRAME_COUNT)
+    
+    def text_extraction(self,d):
+                    output_text = ""
+                    for i in range(len(d['text'])):
+                       if not (d['text'][i].isspace() and d['text'][i] != '/t'):
+                           output_text += d['text'][i] + " "
+                    return output_text
 
-    def ocr_frame(self, frame,text_string):
+    def ocr_frame(self, frame):
 
-        im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame),text_string)
+        im, d = self.compute_best_preprocess(self.cv2_helper.get_grayscale(frame))
 
         if (self.ocr_type == "LINES"):
             frame = self.boxes_helper.show_boxes_lines(d, frame)
         else:
             frame = self.boxes_helper.show_boxes_words(d, frame)
+        output_text = self.text_extraction(d)
+        filename = 'transcript.txt'
 
+        if os.path.exists(filename):
+            with open(filename,mode="a",encoding='utf-8') as file:
+                file.write(output_text)
+        else:
+            with open(filename,mode="a",encoding='utf-8') as file:
+                 file.write(output_text)
         return frame
 
-    def compute_best_preprocess(self, frame,text_string):
+    def compute_best_preprocess(self, frame):
         def f(count, mean):
             return 10 * count + mean
 
@@ -292,15 +309,7 @@ class OCR_HANDLER:
             # Compute mean conf:
             d = pytesseract.image_to_data(im, output_type=pytesseract.Output.DICT)
             # extracting the text: 
-            output_text = pytesseract.image_to_string(im)
-            filename = 'transcript.txt'
-
-            if os.path.exists(filename):
-                with open(filename,mode="a",encoding='utf-8') as file:
-                    file.write(output_text)
-            else:
-                with open(filename,mode="a",encoding='utf-8') as file:
-                    file.write(output_text)
+            
             confs = [int(float(d['conf'][i])) for i in range(len(d['text'])) if not (d['text'][i].isspace())]
             confs = [i for i in confs if i > 60]
 
@@ -313,5 +322,6 @@ class OCR_HANDLER:
                 best_d = d
                 best_f = f(len(confs), mean_conf)
                 #print(opt)
+        
 
         return best_im, best_d

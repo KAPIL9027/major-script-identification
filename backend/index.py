@@ -19,7 +19,7 @@ def pdfCreater():
   pdf.set_font("Arial", size = 15)
  
 # open the text file in read mode
-  f = open("transcript.txt", "r", encoding='utf-8')
+  f = open("transcript.txt", "r")
  
 # insert the texts in pdf
   for x in f:
@@ -53,11 +53,11 @@ def upload_video():
         if os.path.exists('transcript.txt'):
           print("hello")
           os.remove('transcript.txt')
-        text_string = ""
-        ocr_handler.process_frames(text_string)
+        
+        ocr_handler.process_frames()
         ocr_handler.assemble_video()
         print("OCR PROCESS FINISHED: OUTPUT FILE => " + ocr_handler.out_name)
-        pdfCreater()
+        
         with open('transcript.txt', 'r') as file:
          text = file.read().replace('\n', ' ')
         print(text)
